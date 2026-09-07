@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-// Встановлюємо кодування UTF-8
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
 Console.WriteLine("CrossApp - Cross-platform programming practicum");
