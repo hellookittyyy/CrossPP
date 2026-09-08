@@ -20,7 +20,9 @@ CurrentDirectory = Environment.CurrentDirectory,
 Domain = "Library (books, book copies, readers, loans)"
 };
 
-string jsonString = JsonSerializer.Serialize(sysInfo);
+var options = new JsonSerializerOptions
+{ WriteIndented = true };
+var jsonString = JsonSerializer.Serialize(sysInfo, options);
 Console.WriteLine(jsonString);
 }
 else
