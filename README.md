@@ -9,6 +9,7 @@
 ```bash
 dotnet build
 dotnet run --project src/Cli 
+dotnet run --project src/Cli -- --json
 ```
 **Середовище:** .NET SDK 10.0, macOS
 ## Додаткове завдання
