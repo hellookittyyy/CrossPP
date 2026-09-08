@@ -11,3 +11,6 @@ dotnet build
 dotnet run --project src/Cli 
 ```
 **Середовище:** .NET SDK 10.0, macOS
+## Додаткове завдання
+Розмір каталогу publish для osx-arm64: 83 MB
+Розмір каталогу publish для win-x64: 77 MB
