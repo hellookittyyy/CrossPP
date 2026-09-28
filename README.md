@@ -13,8 +13,8 @@ dotnet run --project src/Cli -- --json
 ```
 **Середовище:** .NET SDK 10.0, macOS
 ## Додаткове завдання
-Розмір каталогу publish для osx-arm64: 83 MB
-Розмір каталогу publish для win-x64: 77 MB
+Розмір каталогу publish для osx-arm64: 65 MB (self-contained, net10.0)
+Розмір каталогу publish для win-x64: 77 MB (self-contained, net10.0)
 
 ## Лабораторна 2 – Class Library, Publish
 
@@ -48,8 +48,8 @@ dotnet publish src/Cli -c Release -r osx-arm64 --self-contained false -f net10.0
 
 | RID | Режим | Розмір publish | Потрібен runtime |
 |-----|-------|---------------|------------------|
-| osx-arm64 | self-contained | ~83 МБ | ні |
-| osx-arm64 | framework-dependent | ~0.2 МБ | так (.NET 10) |
+| osx-arm64 | self-contained | ~65 МБ | ні |
+| osx-arm64 | framework-dependent | ~0.3 МБ | так (.NET 10) |
 | win-x64 | self-contained | ~77 МБ | ні |
 | win-x64 | framework-dependent | ~0.2 МБ | так (.NET 10) |
 
