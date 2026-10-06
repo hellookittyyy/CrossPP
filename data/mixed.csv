@@ -1,0 +1,19 @@
+# Книги
+B;B01;978-0-13-110362-7;The C Programming Language;1988;Brian W. Kernighan, Dennis M. Ritchie
+B;B02;978-0-201-63361-0;Design Patterns;1994;Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides
+B;B03;978-0-13-235088-4;Clean Code;2008;Robert C. Martin
+B;B04;978-0-321-35668-0;Effective Java;2008;Joshua Bloch
+B;B05;978-0-596-00712-6;Head First Design Patterns;2004;Eric Freeman, Elisabeth Robson, Bert Bates, Kathy Sierra
+B;B06;978-0-13-468599-1;Effective C++;1992;Scott Meyers
+B;B07;978-0-201-83595-3;The Mythical Man-Month;1975;Frederick P. Brooks Jr.
+B;B08;978-0-7356-1967-8;Code Complete;2004;Steve McConnell
+# Читачі
+R;R01;Ivanenko Ivan;ivan@example.com;+380501234567
+R;R02;Petrenko Petro;petro@example.com
+R;R03;Sydorenko Sydir;sydir@example.com;+380671234567
+R;R04;Kovalenko Mykola;mykola@example.com
+# Помилкові рядки
+B;B09;;Missing ISBN;2020;Author
+B;B10;978-1-111-11111-1;Wrong Year;2200;Author
+R;R05;No Email Reader
+X;Unknown Record Type

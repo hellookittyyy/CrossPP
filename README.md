@@ -57,3 +57,31 @@ dotnet publish src/Cli -c Release -r osx-arm64 --self-contained false -f net10.0
 - `Core/Dto/` — record-типи формату даних
 - `Core/Domain/` — сутності з поведінкою та інваріантами
 - `Core/Storage/` — реалізації сховищ
+
+## Лабораторна 3 – Parsing, Pattern Matching
+
+### Структура
+- `Core/Dto/` — містить виключно типи даних (records): `BookDto.cs`, `ReaderDto.cs`, `ImportResult.cs`.
+- `Core/Import/` — містить бізнес-логіку парсингу файлів: `BookCsvImporter.cs`, `BookJsonImporter.cs`, `LibraryCsvImporter.cs` тощо.
+- `data/` — містить файли з даними (`sample.csv`, `sample.json`, `mixed.csv`) для тестування парсерів.
+
+### Особливості реалізації
+- Використано **C# Pattern Matching** (List patterns, Property patterns, Relational patterns) замість багаторазових `.Split()` та `if-else`.
+- Числа обробляються з `CultureInfo.InvariantCulture`.
+- Реалізовано збір помилок без переривання парсингу файлу.
+- **Додаткові завдання:**
+  1. Реалізовано JSON-імпортер через `System.Text.Json` із підтримкою збору помилок.
+  2. Реалізовано читання змішаних файлів (книги та читачі в одному CSV) через один `switch` (`LibraryCsvImporter`).
+  3. Виведено статистику парсингу (`ImportStats`).
+
+### Команди для тестування
+```bash
+# Базове завдання (CSV)
+dotnet run --project src/Cli -- data/sample.csv
+
+# Додаткове завдання 1 (JSON)
+dotnet run --project src/Cli -- data/sample.json
+
+# Додаткове завдання 2 (Змішаний CSV)
+dotnet run --project src/Cli -- --mixed data/mixed.csv
+```

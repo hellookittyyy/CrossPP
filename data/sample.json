@@ -1,0 +1,12 @@
+[
+  { "id": "B01", "isbn": "978-0-13-110362-7", "title": "The C Programming Language", "year": 1988, "author": "Brian W. Kernighan, Dennis M. Ritchie" },
+  { "id": "B02", "isbn": "978-0-201-63361-0", "title": "Design Patterns", "year": 1994, "author": "Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides" },
+  { "id": "B03", "isbn": "978-0-13-235088-4", "title": "Clean Code", "year": 2008, "author": "Robert C. Martin" },
+  { "id": "B04", "isbn": "978-0-321-35668-0", "title": "Effective Java", "year": 2008, "author": "Joshua Bloch" },
+  { "id": "B05", "isbn": "978-0-596-00712-6", "title": "Head First Design Patterns", "year": 2004, "author": "Eric Freeman, Elisabeth Robson, Bert Bates, Kathy Sierra" },
+  { "id": "B06", "isbn": "978-0-13-468599-1", "title": "Effective C++", "year": 1992, "author": "Scott Meyers" },
+  { "id": "B07", "isbn": "978-0-201-83595-3", "title": "The Mythical Man-Month", "year": 1975, "author": "Frederick P. Brooks Jr." },
+  { "id": "B08", "isbn": "978-0-7356-1967-8", "title": "Code Complete", "year": 2004, "author": "Steve McConnell" },
+  { "id": "B09", "isbn": "", "title": "Missing ISBN", "year": 2020, "author": "Author" },
+  { "id": "B10", "isbn": "978-1-111-11111-1", "title": "Wrong Year", "year": 2200, "author": "Author" }
+]
