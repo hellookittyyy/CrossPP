@@ -85,3 +85,69 @@ dotnet run --project src/Cli -- data/sample.json
 # Додаткове завдання 2 (Змішаний CSV)
 dotnet run --project src/Cli -- --mixed data/mixed.csv
 ```
+
+## Лабораторна 4 – Доменна модель: сутності, інваріанти, інкапсуляція
+
+### Сутності
+
+- **BookCopy** — примірник книги (`Id`, `Isbn`, `IsIssued`). Операції: `Issue()`, `Return()`.
+- **Loan** — видача примірника читачу (`Id`, `CopyId`, `ReaderId`, `IssuedOn`, `ReturnedOn`, `Status`). Операції: `Open()`, `Close()`, `AddNote()`. Агрегат із колекцією `LoanNote`.
+- **LoanNote** — нотатка до видачі (value object, незмінний після створення).
+- **LoanStatus** — enum: `Open`, `Closed`.
+
+### Зв'язок сутностей
+
+`BookCopy` ← `Loan` (за `CopyId`). `Loan` містить колекцію `LoanNote` (агрегат).
+
+### Інваріанти
+
+| # | Правило | Тип винятку | Метод |
+|---|---------|-------------|-------|
+| 1 | Id примірника не може бути порожнім | `ArgumentException` | `BookCopy.Create` |
+| 2 | ISBN не може бути порожнім | `ArgumentException` | `BookCopy.Create` |
+| 3 | Не можна видати вже виданий примірник | `InvalidOperationException` | `BookCopy.Issue` |
+| 4 | Не можна повернути невиданий примірник | `InvalidOperationException` | `BookCopy.Return` |
+| 5 | Id видачі не може бути порожнім | `ArgumentException` | `Loan.Open` |
+| 6 | CopyId не може бути порожнім | `ArgumentException` | `Loan.Open` |
+| 7 | ReaderId не може бути порожнім | `ArgumentException` | `Loan.Open` |
+| 8 | Дата повернення не може бути раніше дати видачі | `ArgumentOutOfRangeException` | `Loan.Close` |
+| 9 | Не можна закрити вже закриту видачу | `InvalidOperationException` | `Loan.Close` |
+| 10 | Текст нотатки не може бути порожнім | `ArgumentException` | `LoanNote.Create` |
+| 11 | Не можна додати нотатку до закритої видачі | `InvalidOperationException` | `Loan.AddNote` |
+
+### Додаткові завдання
+
+1. **ImportResult → доменні сутності** (`DomainImporter.ImportBookCopies`): бере `ImportResult<BookDto>` і повертає `ImportResult<BookCopy>` із зібраними помилками інваріантів.
+2. **Міжсутнісний інваріант**: не видати примірник читачу з ≥ 5 відкритих видач. Такі правила виносять у сервіс (тиждень 5), бо сутність не має доступу до колекції видач іншого агрегату.
+3. **Enum LoanStatus** (`Open`, `Closed`) з перевіркою допустимих переходів через `switch expression` у `Loan.Close()`.
+
+### Структура
+
+```
+src/Core/
+  Dto/
+    BookDto.cs              (record з тижня 3 — DTO книги)
+    ReaderDto.cs            (record з тижня 3 — DTO читача)
+    BookCopyDto.cs          (НОВЕ: DTO примірника)
+    LoanDto.cs              (НОВЕ: DTO видачі)
+    LoanNoteDto.cs          (НОВЕ: DTO нотатки)
+    ImportResult.cs
+  Domain/                   (НОВЕ: сутності з поведінкою)
+    BookCopy.cs             (примірник книги)
+    Loan.cs                 (видача — агрегат із нотатками)
+    LoanNote.cs             (нотатка — value object)
+    LoanStatus.cs           (enum стану видачі)
+    DomainImporter.cs       (перетворення ImportResult → доменні сутності)
+  Import/
+    BookCsvImporter.cs
+    BookJsonImporter.cs
+    LibraryCsvImporter.cs
+src/Cli/
+  Program.cs                (сценарії «успіх» + «порушення інваріанту»)
+```
+
+### Команди
+
+```bash
+dotnet run --project src/Cli -- --domain
+```

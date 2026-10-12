@@ -1,5 +1,6 @@
 using System.Text;
 using Core;
+using Core.Domain;
 using Core.Dto;
 using Core.Import;
 
@@ -8,6 +9,12 @@ Console.OutputEncoding = Encoding.UTF8;
 if (args.Contains("--env"))
 {
     PrintEnvironment();
+    return 0;
+}
+
+if (args.Contains("--domain"))
+{
+    RunDomainScenarios();
     return 0;
 }
 
@@ -45,6 +52,201 @@ if (result is null)
 PrintBooks(result);
 return 0;
 
+static void RunDomainScenarios()
+{
+    Console.WriteLine("╔══════════════════════════════════════════════════╗");
+    Console.WriteLine("║   ЛАБОРАТОРНА 4 — Доменна модель: Бібліотека    ║");
+    Console.WriteLine("╚══════════════════════════════════════════════════╝");
+    Console.WriteLine();
+
+    Console.WriteLine("=== Сценарій 1: успіх ===");
+    Console.WriteLine();
+
+    BookCopy copy1 = BookCopy.Create("C-001", "978-3-16-148410-0");
+    BookCopy copy2 = BookCopy.Create("C-002", "978-0-13-468599-1");
+    BookCopy copy3 = BookCopy.Create("C-003", "978-1-23-456789-0");
+    Console.WriteLine($"  Створено: {copy1}");
+    Console.WriteLine($"  Створено: {copy2}");
+    Console.WriteLine($"  Створено: {copy3}");
+    Console.WriteLine();
+
+    copy1.Issue();
+    Console.WriteLine($"  Після видачі: {copy1}");
+
+    DateTime issuedOn = new(2026, 10, 1);
+    Loan loan1 = Loan.Open("L-001", "C-001", "R-001", issuedOn);
+    Console.WriteLine($"  {loan1}");
+
+    loan1.AddNote("Читач попросив продовження на тиждень", new DateTime(2026, 10, 5));
+    Console.WriteLine($"  Додано нотатку: {loan1.Notes[0]}");
+    Console.WriteLine($"  {loan1}");
+
+    loan1.Close(new DateTime(2026, 10, 12));
+    copy1.Return();
+    Console.WriteLine($"  Після повернення: {loan1}");
+    Console.WriteLine($"  Примірник: {copy1}");
+    Console.WriteLine();
+
+    Console.WriteLine("  --- ToDto / FromDto ---");
+    BookCopyDto copyDto = copy1.ToDto();
+    Console.WriteLine($"  BookCopy → DTO: {copyDto}");
+    BookCopy restoredCopy = BookCopy.FromDto(copyDto);
+    Console.WriteLine($"  DTO → BookCopy: {restoredCopy}");
+    Console.WriteLine();
+
+    LoanDto loanDto = loan1.ToDto();
+    Console.WriteLine($"  Loan → DTO: Id={loanDto.Id}, Status={loanDto.Status}, Notes={loanDto.Notes.Count}");
+    Loan restoredLoan = Loan.FromDto(loanDto);
+    Console.WriteLine($"  DTO → Loan: {restoredLoan}");
+    Console.WriteLine();
+
+    Console.WriteLine($"  Стан copy1 після всіх операцій: {copy1}");
+    Console.WriteLine();
+
+    Console.WriteLine("=== Сценарій 2: порушення інваріантів ===");
+    Console.WriteLine();
+
+    TryDo("порожній Id примірника",
+        () => BookCopy.Create("", "978-3-16-148410-0"));
+
+    TryDo("порожній ISBN",
+        () => BookCopy.Create("C-010", "   "));
+
+    copy2.Issue();
+    TryDo("повторна видача вже виданого примірника",
+        () => copy2.Issue());
+
+    TryDo("повернення невиданого примірника",
+        () => copy3.Return());
+
+    Console.WriteLine();
+
+    TryDo("порожній Id видачі",
+        () => Loan.Open("", "C-001", "R-001", DateTime.Now));
+
+    TryDo("порожній ReaderId",
+        () => Loan.Open("L-010", "C-001", "  ", DateTime.Now));
+
+    Loan loan2 = Loan.Open("L-002", "C-002", "R-002", new DateTime(2026, 10, 5));
+
+    TryDo("дата повернення раніше дати видачі",
+        () => loan2.Close(new DateTime(2026, 9, 1)));
+
+    loan2.Close(new DateTime(2026, 10, 10));
+    TryDo("повторне закриття вже закритої видачі",
+        () => loan2.Close(new DateTime(2026, 10, 11)));
+
+    TryDo("нотатка до закритої видачі",
+        () => loan2.AddNote("Спроба додати нотатку", DateTime.Now));
+
+    TryDo("порожній текст нотатки",
+        () =>
+        {
+            Loan tempLoan = Loan.Open("L-099", "C-099", "R-099", DateTime.Now);
+            tempLoan.AddNote("   ", DateTime.Now);
+        });
+
+    Console.WriteLine();
+    Console.WriteLine($"  Стан copy2 після відмов: {copy2}");
+    Console.WriteLine($"  Стан copy3 після відмов: {copy3}");
+    Console.WriteLine($"  Стан loan2 після відмов: {loan2}");
+    Console.WriteLine();
+
+    Console.WriteLine("=== Додаткове 1: ImportResult → доменні сутності ===");
+    Console.WriteLine();
+
+    var importItems = new List<BookDto>
+    {
+        new("C-100", "978-0-00-000001-0", "Кобзар", 1840),
+        new("C-101", "978-0-00-000002-7", "Тигролови", 1944),
+        new("", "978-0-00-000003-4", "Без ідентифікатора", 2000),
+        new("C-103", "", "Без ISBN", 2001),
+        new("C-104", "978-0-00-000004-1", "Лісова пісня", 1911),
+    };
+    var importErrors = new List<string> { "рядок 6: рік '1xyz' не є цілим числом" };
+    var importResult = new ImportResult<BookDto>(importItems, importErrors);
+
+    var domainResult = DomainImporter.ImportBookCopies(importResult);
+
+    Console.WriteLine($"  Успішно створено: {domainResult.Items.Count} примірників");
+    foreach (var item in domainResult.Items)
+        Console.WriteLine($"    {item}");
+
+    Console.WriteLine($"  Помилки ({domainResult.Errors.Count}):");
+    foreach (var error in domainResult.Errors)
+        Console.WriteLine($"    ! {error}");
+    Console.WriteLine();
+
+    Console.WriteLine("=== Додаткове 2: міжсутнісний інваріант (≥5 відкритих видач) ===");
+    Console.WriteLine();
+
+    string readerId = "R-100";
+    var openLoans = new List<Loan>();
+
+    for (int i = 1; i <= 5; i++)
+    {
+        var copy = BookCopy.Create($"C-2{i:D2}", $"978-0-00-00010{i}-0");
+        copy.Issue();
+
+        var loan = Loan.Open($"L-2{i:D2}", copy.Id, readerId,
+                             new DateTime(2026, 10, i));
+        openLoans.Add(loan);
+        Console.WriteLine($"  Видача {i}: {loan.Id} → {copy.Id}");
+    }
+
+    Console.WriteLine($"  Відкритих видач у читача {readerId}: {openLoans.Count}");
+
+    TryDo("видача 6-го примірника читачу з 5 відкритими видачами",
+        () =>
+        {
+            int activeLoans = openLoans.Count(l => l.Status == LoanStatus.Open);
+            if (activeLoans >= 5)
+                throw new InvalidOperationException(
+                    $"Читач {readerId} має {activeLoans} відкритих видач, " +
+                    $"максимально дозволено 5. Спочатку поверніть хоча б один примірник.");
+
+            var extraCopy = BookCopy.Create("C-299", "978-0-00-001099-0");
+            extraCopy.Issue();
+            Loan.Open("L-299", extraCopy.Id, readerId, DateTime.Now);
+        });
+
+    Console.WriteLine();
+    Console.WriteLine("  ℹ Цей інваріант охоплює ДВІ сутності (Loan + Reader).");
+    Console.WriteLine("    Його виносять у сервіс (тиждень 5), бо сутність");
+    Console.WriteLine("    не має доступу до колекції видач іншого агрегату.");
+    Console.WriteLine();
+
+    Console.WriteLine("=== Додаткове 3: enum LoanStatus + switch expression ===");
+    Console.WriteLine();
+
+    Loan loan3 = Loan.Open("L-300", "C-300", "R-300", new DateTime(2026, 10, 1));
+    Console.WriteLine($"  Стан: {loan3.Status}");
+
+    loan3.Close(new DateTime(2026, 10, 10));
+    Console.WriteLine($"  Стан: {loan3.Status}");
+
+    TryDo("перехід Closed → Closed (заборонено)",
+        () => loan3.Close(new DateTime(2026, 10, 11)));
+
+    Console.WriteLine();
+    Console.WriteLine("  ℹ Перевірка допустимих переходів виконується в методі Loan.Close()");
+    Console.WriteLine("    через switch expression: Open → Closed (дозволено),");
+    Console.WriteLine("    Closed → Closed (InvalidOperationException).");
+}
+
+static void TryDo(string title, Action action)
+{
+    try
+    {
+        action();
+        Console.WriteLine($"  {title}: виняток НЕ спрацював — інваріант відсутній!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  {title}: {ex.GetType().Name} — {ex.Message}");
+    }
+}
+
 static void PrintBooks(ImportResult<BookDto> result)
 {
     Console.WriteLine($"Завантажено записів: {result.Items.Count}");
@@ -53,7 +255,6 @@ static void PrintBooks(ImportResult<BookDto> result)
 
     PrintErrors(result.Errors);
     
-    // Статистика (дод. завдання 3) рахується тут у Cli з даних результату
     var stats = new ImportStats(result.Items.Count + result.Errors.Count, result.Items.Count, result.Errors.Count);
     Console.WriteLine($"Статистика: {stats}");
 }
