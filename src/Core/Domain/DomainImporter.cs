@@ -13,7 +13,7 @@ public static class DomainImporter
         {
             try
             {
-                var copy = BookCopy.Create(dto.Id, dto.Isbn);
+                var copy = BookCopy.Create(dto.Id, dto.Isbn, title: dto.Title, author: dto.Author);
                 items.Add(copy);
             }
             catch (Exception ex)

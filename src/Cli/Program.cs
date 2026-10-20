@@ -1,8 +1,12 @@
 using System.Text;
+using Cli;
 using Core;
+using Core.Abstractions;
 using Core.Domain;
 using Core.Dto;
 using Core.Import;
+using Core.Services;
+using Core.Storage;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -20,37 +24,162 @@ if (args.Contains("--domain"))
 
 bool mixed = args.Contains("--mixed");
 string[] positional = args.Where(a => !a.StartsWith("--")).ToArray();
-string path = positional.Length > 0
-    ? positional[0]
-    : Path.Combine("data", mixed ? "mixed.csv" : "sample.csv");
+bool hasDataFile = positional.Length > 0 &&
+    (positional[0].EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ||
+     positional[0].EndsWith(".json", StringComparison.OrdinalIgnoreCase));
 
-if (!File.Exists(path))
+if (mixed || hasDataFile || args.Contains("--import"))
 {
-    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
-    return 1;
-}
+    string path = positional.Length > 0
+        ? positional[0]
+        : Path.Combine("data", mixed ? "mixed.csv" : "sample.csv");
 
-if (mixed)
-{
-    PrintLibrary(LibraryCsvImporter.Load(path));
+    if (!File.Exists(path))
+    {
+        Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
+        return 1;
+    }
+
+    if (mixed)
+    {
+        PrintLibrary(LibraryCsvImporter.Load(path));
+        return 0;
+    }
+
+    ImportResult<BookDto>? result = Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".csv" => BookCsvImporter.Load(path),
+        ".json" => BookJsonImporter.Load(path),
+        _ => null
+    };
+
+    if (result is null)
+    {
+        Console.WriteLine($"Непідтримуваний формат '{Path.GetExtension(path)}': очікую .csv або .json");
+        return 2;
+    }
+
+    PrintBooks(result);
     return 0;
 }
 
-ImportResult<BookDto>? result = Path.GetExtension(path).ToLowerInvariant() switch
-{
-    ".csv" => BookCsvImporter.Load(path),
-    ".json" => BookJsonImporter.Load(path),
-    _ => null
-};
+RunStoreScenarios(args);
+return 0;
 
-if (result is null)
+static void RunStoreScenarios(string[] args)
 {
-    Console.WriteLine($"Непідтримуваний формат '{Path.GetExtension(path)}': очікую .csv або .json");
-    return 2;
+    Console.WriteLine("╔══════════════════════════════════════════════════════════╗");
+    Console.WriteLine("║   ЛАБОРАТОРНА 5 — Сховище + Сервіс: Бібліотека           ║");
+    Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
+    Console.WriteLine();
+
+    bool useFile = args.Contains("--file");
+    string dataPath = StoreFactory.DataPath();
+
+    IBookStore store = useFile
+        ? new FileBookStore(dataPath)
+        : new InMemoryBookStore(SampleData.BookCopies());
+
+    var service = new LendingService(store);
+
+    Console.WriteLine($"Сховище: {store.GetType().Name}");
+    if (useFile)
+    {
+        Console.WriteLine($"Файл сховища: {dataPath}");
+        Console.WriteLine($"Завантажено з диска примірників: {service.All().Count}");
+    }
+    Console.WriteLine();
+
+    Console.WriteLine("=== Сценарій 1: Додавання, видача та повернення примірника ===");
+    Console.WriteLine();
+
+    var created = service.AddBook("978-966-97166-0-2", "Кобзар", "Тарас Шевченко");
+    Console.WriteLine($"  [+] Додано новий примірник: {created}");
+
+    service.IssueCopy(created.Id);
+    var issued = service.Find(created.Id);
+    Console.WriteLine($"  [→] Після видачі читачу:  {issued}");
+
+    service.ReturnCopy(created.Id);
+    var returned = service.Find(created.Id);
+    Console.WriteLine($"  [←] Після повернення:     {returned}");
+    Console.WriteLine();
+
+    Console.WriteLine($"=== Список примірників у сховищі (усього: {service.All().Count}) ===");
+    Console.WriteLine();
+    foreach (var p in service.All())
+        Console.WriteLine($"  {p.Id,-10} {p.Isbn,-20} {p.Title ?? "—",-34} {(p.IsIssued ? "видано" : "в наявності")}");
+    Console.WriteLine();
+
+    Console.WriteLine($"=== Пошук за id={created.Id} ===");
+    Console.WriteLine();
+    var found = service.Find(created.Id);
+    Console.WriteLine(found is not null
+        ? $"  [✓] Знайдено: {found}"
+        : $"  [✗] Не знайдено запис з id={created.Id}");
+    Console.WriteLine();
+
+    Console.WriteLine("=== Сценарій 2: Відмова та обробка помилок ===");
+    Console.WriteLine();
+
+    TryDo("Спроба додати дублікат id",
+        () => service.AddBook("978-0-00-000001-0", "Дублікат", id: created.Id));
+
+    TryDo("Спроба видачі неіснуючого примірника",
+        () => service.IssueCopy("NONEXISTENT-999"));
+
+    TryDo("Спроба повернення неіснуючого примірника",
+        () => service.ReturnCopy("NONEXISTENT-999"));
+
+    service.IssueCopy(created.Id);
+    TryDo("Повторна видача вже виданого примірника",
+        () => service.IssueCopy(created.Id));
+
+    service.ReturnCopy(created.Id);
+
+    TryDo("Повернення невиданого примірника",
+        () => service.ReturnCopy(created.Id));
+
+    Console.WriteLine();
+
+    Console.WriteLine("=== Додаткові завдання ===");
+    Console.WriteLine();
+
+    Console.WriteLine("1. Декоратор CachingBookStore (окреме демо-сховище в пам'яті):");
+    var innerStore = new InMemoryBookStore(SampleData.BookCopies());
+    var cachingStore = new CachingBookStore(innerStore);
+    var cachedService = new LendingService(cachingStore);
+
+    var c1 = cachedService.AddBook("978-0-00-000099-0", "Тестове видання");
+    Console.WriteLine($"   • Додано через кешоване сховище: {c1}");
+    Console.WriteLine($"   • Примірників у кешованому сховищі: {cachedService.All().Count}");
+    Console.WriteLine($"   • Тип сховища: {cachingStore.GetType().Name} (обгортає {innerStore.GetType().Name})");
+    Console.WriteLine();
+
+    Console.WriteLine("2. Пошук з предикатом Func<BookCopy, bool> (ISBN починається з '978-966'):");
+    var isbn978 = service.Search(c => c.Isbn.StartsWith("978-966"));
+    Console.WriteLine($"   • Знайдено примірників: {isbn978.Count}");
+    foreach (var c in isbn978)
+        Console.WriteLine($"     - {c}");
+    Console.WriteLine();
+
+    Console.WriteLine("3. Фабрика StoreFactory.Create(args):");
+    Console.WriteLine($"   • без --file → {StoreFactory.Create([]).GetType().Name}");
+    Console.WriteLine($"   • з --file   → {StoreFactory.Create(["--file"]).GetType().Name}");
 }
 
-PrintBooks(result);
-return 0;
+static void TryDo(string title, Action action)
+{
+    try
+    {
+        action();
+        Console.WriteLine($"  [!] {title}: виняток НЕ спрацював — операція завершилась успішно!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  [✓] {title}: перехоплено {ex.GetType().Name} — {ex.Message}");
+    }
+}
 
 static void RunDomainScenarios()
 {
@@ -232,19 +361,6 @@ static void RunDomainScenarios()
     Console.WriteLine("  ℹ Перевірка допустимих переходів виконується в методі Loan.Close()");
     Console.WriteLine("    через switch expression: Open → Closed (дозволено),");
     Console.WriteLine("    Closed → Closed (InvalidOperationException).");
-}
-
-static void TryDo(string title, Action action)
-{
-    try
-    {
-        action();
-        Console.WriteLine($"  {title}: виняток НЕ спрацював — інваріант відсутній!");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"  {title}: {ex.GetType().Name} — {ex.Message}");
-    }
 }
 
 static void PrintBooks(ImportResult<BookDto> result)
